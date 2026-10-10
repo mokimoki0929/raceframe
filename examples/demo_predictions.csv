@@ -1,0 +1,7 @@
+race_id,horse_num,waku_num,horse,p_final,p36,place,dist,track_code,CourseKubunCD,running_style_last1
+sample-tokyo,1,1,デモ馬A,0.45,0.40,05,2400,11,A,2
+sample-tokyo,2,2,デモ馬B,0.35,0.35,05,2400,11,A,3
+sample-tokyo,3,3,デモ馬C,0.20,0.25,05,2400,11,A,1
+sample-kyoto,1,1,デモ馬D,0.60,0.55,08,1600,18,A,3
+sample-kyoto,2,2,デモ馬E,0.25,0.30,08,1600,18,A,2
+sample-kyoto,3,3,デモ馬F,0.15,0.15,08,1600,18,A,4

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "races": [
+    {
+      "id": "sample-tokyo",
+      "title": "東京 架空サンプル",
+      "course_id": "tokyo-turf-A",
+      "distance": 2400,
+      "demo": true,
+      "source": "Synthetic example only",
+      "horses": [
+        {
+          "num": 1,
+          "frame": 1,
+          "name": "デモ馬A",
+          "probability": 0.45,
+          "style": "front"
+        },
+        {
+          "num": 2,
+          "frame": 2,
+          "name": "デモ馬B",
+          "probability": 0.35,
+          "style": "stalk"
+        },
+        {
+          "num": 3,
+          "frame": 3,
+          "name": "デモ馬C",
+          "probability": 0.2,
+          "style": "escape"
+        }
+      ]
+    }
+  ]
+}
