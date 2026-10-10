@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="AIの予測勝率で仮想レースを観戦する、ローカル処理の2Dレースアニメーター。">
+<meta name="color-scheme" content="light">
+<title>RACE FRAME</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+ <a class="brand" href="./"><span class="brand-symbol">R<span>F</span></span><span>RACE FRAME<small>PROBABILITY IN MOTION</small></span></a>
+ <nav aria-label="メイン"><span class="nav-active">レースシミュレーター</span><button class="nav-link" id="sourcesBtn">コース資料・精度</button><button class="nav-link" id="helpBtn">使い方</button></nav>
+ <div class="local-badge"><i></i> ブラウザ内で処理</div>
+</header>
+<main>
+ <div class="page-heading"><div><div class="eyebrow">YOUR MODEL. A DIFFERENT PERSPECTIVE.</div><h1>勝率を、レースに。</h1></div><div class="heading-note">AIが示す可能性を、ひとつのレースとして観る。<br><span>非公式 / 勝率固定の演出シミュレーション</span></div></div>
+ <div id="errorBanner" class="error-banner" role="alert" hidden></div>
+ <div class="workspace">
+  <aside class="left-column">
+   <section class="panel setup">
+    <div class="section-title"><span class="step">01</span><h2>予測データ</h2></div>
+    <button class="upload-button" id="importBtn"><span class="upload-icon">↥</span><span>勝率CSV / JSONを読み込む<small>p_final・p36に対応 / 外部送信なし</small></span></button>
+    <label for="dateSelect">開催日</label>
+    <select id="dateSelect">
+    <option value="">読み込み中...</option>
+    </select>
+
+    <label for="raceSelect">
+    レース <span id="dataType" class="tiny-badge">DEMO</span>
+    </label>
+    <select id="raceSelect"></select>
+    <div class="row-buttons"><button id="editBtn" class="text-button">出走馬・勝率を編集</button><button id="demoBtn" class="text-button muted">デモに戻す</button></div>
+    <div id="inputSummary" class="input-summary"></div>
+   </section>
+   <section class="panel setup course-setup">
+    <div class="section-title"><span class="step">02</span><h2>表示するコース</h2></div>
+    <label for="venueSelect">競馬場</label><select id="venueSelect"></select>
+    <div class="form-grid">
+     <div><label for="variantSelect">走路</label><select id="variantSelect"></select></div>
+     <div><label for="railSelect">内柵設定</label><select id="railSelect"></select></div>
+    </div>
+    <label for="distanceSelect">距離</label><select id="distanceSelect"></select>
+    <button id="confirmCourseBtn" class="confirm-button" hidden>この表示コースで確認</button>
+    <div class="small-note">コース変更は表示にのみ反映します。<br>AI勝率は再計算しません。</div>
+    <div class="divider"></div>
+    <div class="form-grid">
+     <div><label for="paceSelect">仮想ペース</label><select id="paceSelect"><option value="auto">脚質から生成</option><option value="slow">スロー</option><option value="normal">ミドル</option><option value="fast">ハイ</option></select></div>
+     <div><label for="goingSelect">馬場の演出</label><select id="goingSelect"><option value="good">良</option><option value="yielding">稍重</option><option value="soft">重</option><option value="heavy">不良</option></select></div>
+    </div>
+    <label for="seedInput">再現用シード <span class="label-help">同じ設定で同じレース</span></label>
+    <div class="seed-control"><input id="seedInput" value="race-001" maxlength="80" aria-label="乱数シード"><button id="randomSeedBtn" title="シードを変える" aria-label="シードを変える">↻</button></div>
+   </section>
+   <div class="notice"><span>ⓘ</span><p>勝ち馬は入力勝率に従って抽選。展開・着差・タイムは観戦用の演出で、未来のレースの予測ではありません。丸の大きさ・間隔は視認性のため拡大しています。</p></div>
+  </aside>
+  <section class="center-column">
+   <section class="panel race-panel">
+    <div class="race-header"><div><div class="eyebrow" id="courseEnglish">TOKYO RACECOURSE</div><h2 id="raceTitle">東京 芝2400m</h2><div class="race-meta" id="raceMeta"></div></div><div class="badge-outline">2D / 観戦モード</div></div>
+    <div class="course-metrics"><div><span>1周</span><b id="lapMetric"></b></div><div><span>直線</span><b id="straightMetric"></b></div><div><span>高低差</span><b id="heightMetric"></b></div><button class="accuracy-chip" id="accuracyBtn">形状・標高線は近似 ⓘ</button></div>
+    <div class="track-stage" id="trackStage">
+     <canvas id="trackCanvas" aria-label="馬番付きの丸がコースを走るアニメーション"></canvas>
+     <div class="stage-top"><span id="raceStatus" class="status-pill"><i></i> READY</span><div class="camera-toggle"><button class="active" id="overviewBtn">全体</button><button id="followBtn">馬群を追う</button><button id="fullscreenBtn" title="全画面" aria-label="全画面表示">⛶</button></div></div>
+     <div class="remaining-hud"><span>残り距離</span><strong id="remainingText">2,400<small>m</small></strong></div>
+     <div class="virtual-clock"><span>仮想レースタイム</span><b id="clockText">0:00.0</b></div>
+     <div class="finish-card" id="finishCard" hidden><span>SIMULATED WINNER</span><strong id="winnerText"></strong><small>この1回の仮想結果</small></div>
+     <div class="track-caption"><i></i><span id="sceneCaption">シミュレーションスタートで発走します</span></div>
+    </div>
+    <div class="playback">
+     <div class="timeline"><span id="timeLabel">0:00</span><input id="scrubber" type="range" min="0" max="1000" value="0" step="1" aria-label="レース再生位置"><span id="durationLabel">--:--</span></div>
+     <div class="transport"><button id="startBtn" class="primary-button"><span>▶</span> シミュレーションスタート</button><button id="restartBtn" class="icon-button" title="同じレースを最初から" aria-label="同じレースを最初から">↺</button><button id="newRaceBtn" class="secondary-button">別の展開</button><div class="speed-box"><label for="speedSelect">速度</label><select id="speedSelect"><option value="1">1×</option><option value="2">2×</option><option value="4" selected>4×</option><option value="8">8×</option><option value="16">16×</option></select></div></div>
+    </div>
+   </section>
+   <section class="panel elevation-panel"><div class="elevation-header"><h3>コースの起伏 <span>ELEVATION PROFILE</span></h3><small>レース進行方向 → / 標高線は近似</small></div><canvas id="elevationCanvas" aria-label="選択コースの概算高低断面図"></canvas></section>
+   <div class="bottom-actions"><button id="statsBtn" class="secondary-button">◎ 10,000回の抽選で勝率を検証</button><button id="exportBtn" class="text-button">レース設定を保存 ↓</button><button id="resultBtn" class="text-button" disabled>着順CSV ↓</button></div>
+   <div id="warnings" class="warnings"></div>
+  </section>
+  <aside class="right-column panel">
+   <div class="roster-header"><div class="section-title"><span class="step">03</span><h2>出走馬</h2><span id="horseCount" class="count-badge">16</span></div><small id="probabilityLabel">AI予測勝率</small></div>
+   <div class="roster-legend"><span>馬番 / 馬名・脚質</span><span id="rankHeading">勝率</span></div>
+   <div id="roster" class="roster" role="list"></div>
+   <div class="roster-footer"><div><span>勝率の合計</span><b>100.0%</b></div><small>丸は枠色・数字は馬番。記号は拡大表示。<br>行または丸を<br>クリックすると、その馬をハイライト。</small></div>
+  </aside>
+ </div>
+ <footer class="page-footer"><span>RACE FRAME <b>v1.0</b> · 勝率を変えない、観戦用ビジュアライザー</span><span>平地コース対応 / 障害は未対応 / 実測・公式シミュレーターではありません</span></footer>
+</main>
+
+<dialog id="importDialog" class="wide-dialog"><div class="dialog-header"><div><div class="eyebrow">LOCAL IMPORT</div><h2>予測データを読み込む</h2></div><button class="close-dialog" aria-label="閉じる">×</button></div>
+<p>現行モデルが算出した勝率を読み込みます。読み込んだファイルはサーバーに送信しません。</p>
+<div class="form-grid triple"><div><label for="probColumn">使用する勝率列</label><select id="probColumn"><option value="p_final">p_final（最終勝率）</option><option value="p36">p36（P36本体）</option><option value="probability">probability</option></select></div><div><label for="probUnit">数値の単位</label><select id="probUnit"><option value="fraction">0〜1（0.25 = 25%）</option><option value="percent">0〜100（25 = 25%）</option></select></div><div><label for="csvEncoding">CSV文字コード</label><select id="csvEncoding"><option value="utf-8">UTF-8 / BOM付き</option><option value="shift_jis">Shift-JIS</option></select></div></div>
+<label class="drop-zone" id="dropZone"><span>↥</span><b>CSV / JSONをここにドロップ</b><small>またはクリックしてファイルを選択（20MBまで）</small><input id="fileInput" type="file" accept=".csv,.json,.tsv,.txt" hidden></label>
+<div class="or-divider">または直接貼り付け</div>
+<textarea id="importText" rows="7" spellcheck="false" placeholder="race_id,horse_num,waku_num,horse,p_final,place,dist,track_code,CourseKubunCD&#10;sample,1,1,デモ馬A,0.6,05,2400,11,A&#10;sample,2,2,デモ馬B,0.4,05,2400,11,A"></textarea>
+<p class="small-note">必須：馬番・勝率。枠番がなければ灰色、脚質履歴がなければ中立の演出です。コードはJV-Dataコード表2009に対応。JSONのprobabilityは0〜1です。</p>
+<div id="importError" class="inline-error" role="alert"></div><div class="dialog-actions"><button id="exampleBtn" class="secondary-button">サンプルCSVを入れる</button><button id="applyImportBtn" class="primary-button">読み込んで確認する</button></div></dialog>
+
+<dialog id="editDialog" class="wide-dialog"><div class="dialog-header"><div><div class="eyebrow">RACE CARD</div><h2>出走馬・勝率の編集</h2></div><button class="close-dialog" aria-label="閉じる">×</button></div><p>勝率は%で入力します。適用時に合計100%へ正規化します。編集後は「手動編集データ」として扱います。</p><div class="edit-table-wrap"><table class="edit-table"><thead><tr><th>馬番</th><th>枠</th><th>馬名</th><th>勝率 %</th><th>脚質（演出）</th><th></th></tr></thead><tbody id="editRows"></tbody></table></div><div id="editError" class="inline-error"></div><div class="dialog-actions"><button id="addHorseBtn" class="secondary-button">＋ 出走馬を追加</button><button id="saveEditBtn" class="primary-button">適用する</button></div></dialog>
+
+<dialog id="sourcesDialog" class="wide-dialog"><div class="dialog-header"><div><div class="eyebrow">COURSE DATA & LIMITS</div><h2>再現範囲とデータの精度</h2></div><button class="close-dialog" aria-label="閉じる">×</button></div>
+<div class="accuracy-box"><strong>「完全な実測再現」ではありません。</strong><p>公表されている周長・直線長・最大高低差を使用していますが、平面座標、細かい標高、幅員の変化、引き込み線は近似です。原図の画像は転載せず、独自のベクトル形状で描画しています。</p></div>
+<div id="courseDetail"></div>
+<h3>対応範囲</h3><p>東京：芝A〜D・ダート。中山：芝内外A〜C・ダート。京都：芝内外A〜D・ダート。阪神：芝内外A〜B・ダート。中山2500mの外回り発走と、中山・阪神3200mの外→内の経路を模式的に表現します。障害競走は未対応です。</p>
+<h3>公式資料</h3><div id="sourceLinks" class="source-links"></div>
+<p class="small-note">参照日：2026-10-10。常設コースの公表値です。実開催の内柵・臨時のコース変更を自動追跡する機能はありません。</p>
+<h3>精密な座標を持っている場合</h3><p>現在のベジェ制御点・標高点をJSONで書き出し、座標を編集して読み直せます。最終の直線区間は独立に公表距離へ合わせています。調整内容はこのブラウザセッションのみで有効です。</p>
+<div class="dialog-actions"><button id="downloadCourseBtn" class="secondary-button">コースJSONを書き出す</button><label class="secondary-button">編集したJSONを適用<input id="courseFileInput" type="file" accept=".json" hidden></label></div><div id="courseError" class="inline-error"></div></dialog>
+
+<dialog id="helpDialog" class="wide-dialog"><div class="dialog-header"><div><div class="eyebrow">QUICK START</div><h2>最初のレースを観る</h2></div><button class="close-dialog" aria-label="閉じる">×</button></div>
+<div class="help-grid"><div><b>01 / 読み込む</b><p>まずは架空のデモで再生できます。自分の予想はCSVまたはJSONを読み込んでください。</p></div><div><b>02 / コースを選ぶ</b><p>競馬場、内外回り、内柵、距離を確認します。コースを変えても入力された勝率は固定です。</p></div><div><b>03 / 観戦する</b><p>スタートで再生。「別の展開」で新しい抽選。「↺」は同じ展開を再生します。Spaceキーでも再生・一時停止できます。</p></div></div>
+<h3>勝率とアニメーション</h3><p>最初に入力勝率で勝ち馬を抽選し、Plackett–Luceという追加仮定で残りの着順を決めます。脚質・ペース・坂に応じた速度曲線を作り、抽選結果に合うよう全区間の所要時間を調整します。ゴール直前に瞬間移動させる方式ではありません。</p>
+<p>脚質・坂は<strong>見せ方</strong>に使います。コース適性を改めて掛け合わせて勝率を変更することはありません。2着・3着の頻度、タイム、着差、途中の位置取りは検証済みの予測ではありません。</p>
+<h3>枠と履歴</h3><p>枠番は入力値を使用します。欠損は灰色表示です。過去走のrunning_style_last1〜5またはhistoryを優先し、今回レースの確定通過順位や結果を脚質の推定に使いません。</p>
+<h3>ローカル処理と公開</h3><p>DB、モデル本体、APIキーは不要です。公開しても各利用者の読み込みデータはその人のブラウザ内に留まります。実データをサイトの配信ファイルに同梱する場合は、公開範囲や利用条件を別途確認してください。</p></dialog>
+
+<dialog id="statsDialog" class="wide-dialog"><div class="dialog-header"><div><div class="eyebrow">PROBABILITY CHECK</div><h2>10,000回の仮想着順抽選</h2></div><button class="close-dialog" aria-label="閉じる">×</button></div><p>同じ勝率から独立に抽選した頻度です。予測精度のバックテストではありません。3着内率はPlackett–Luceの仮定による値です。</p><div id="statsBody"></div><div class="dialog-actions"><button id="saveStatsBtn" class="secondary-button">集計CSVを保存</button></div></dialog>
+<div id="toast" role="status" class="toast" hidden></div>
+<noscript><div class="error-banner">このアプリはJavaScriptを有効にしてご利用ください。</div></noscript>
+<script src="src/courses.js"></script><script src="src/engine.js"></script><script src="src/importer.js"></script><script src="src/renderer.js"></script><script src="src/app.js"></script>
+</body></html>
