@@ -95,7 +95,43 @@ async function loadManifest() {
 
   await loadRaceDay(validDates[0]);
 }
-function setRaces(races){state.races=races;state.raceIndex=0;fillSelect('raceSelect',races.map((r,i)=>({value:String(i),label:r.title})),0);selectRace(0);}
+function formatRaceName(race) {
+  const id = String(race.id || race.race_id || "");
+
+  const venues = {
+    "05": "東京",
+    "06": "中山",
+    "08": "京都",
+    "09": "阪神"
+  };
+
+  if (/^\d{12}$/.test(id)) {
+    const venue = venues[id.slice(8, 10)];
+    const number = Number(id.slice(10, 12));
+
+    if (venue && number >= 1 && number <= 12) {
+      return `${venue} ${number}R`;
+    }
+  }
+
+  return race.title || id;
+}
+
+function setRaces(races) {
+  state.races = races;
+  state.raceIndex = 0;
+
+  fillSelect(
+    'raceSelect',
+    races.map((r, i) => ({
+      value: String(i),
+      label: formatRaceName(r)
+    })),
+    0
+  );
+
+  selectRace(0);
+}
 function selectRace(index){
  state.raceIndex=index;const r=current();state.selected=null;state.confirmed=!!r.courseId&&Number.isFinite(r.distance)&&!r.unsupported;
  if(r.courseId)state.courseId=r.courseId;
